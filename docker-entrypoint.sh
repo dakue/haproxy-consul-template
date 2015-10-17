@@ -32,7 +32,7 @@ then
         export CONSUL_PORT="8500"
     fi
 
-    cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.defaul
+    cp /etc/haproxy/haproxy.cfg /etc/haproxy/haproxy.cfg.default
 
     echo "INFO: Starting Consul ..."
     exec /usr/local/bin/consul-template -config $CONSUL_TEMPLATE_HOME/config -consul $CONSUL_HOST:$CONSUL_PORT
