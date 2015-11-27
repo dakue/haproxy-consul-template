@@ -11,6 +11,14 @@ defaults
   timeout client {{or (key "service/haproxy/timeouts/client") "1m"}}
   timeout server {{or (key "service/haproxy/timeouts/server") "1m"}}
 
+{{ range $service := services }}
+{{ with $auth := printf "service/%s/userlist/auth" $service.Name | key }}{{ if eq $auth "true" }}{{/*
+*/}}userlist users_for_{{ $service.Name }}
+{{ range printf "service/%s/userlist/groups" $service.Name | ls }}  group {{.Key}} {{.Value}}{{ end }}
+{{ range printf "service/%s/userlist/users" $service.Name | ls }}  user {{.Key}} insecure-password {{.Value}}{{ end }}
+{{ end }}{{ end }}{{ end }}
+
+
 frontend www
   bind *:80
 
@@ -19,13 +27,15 @@ frontend www
 
   # Generated automatically by consul-template{{ range services }}
   acl host_{{ .Name }} hdr(host) -i {{ .Name }}.{{ or (env "HAPROXY_DOMAIN") "haproxy.service.consul" }} 
-  use_backend {{ .Name }}_backend if host_{{ .Name }}
-{{ end }}
+  use_backend {{ .Name }}_backend if host_{{ .Name }}{{ end }}
 
-{{ range services }}
+{{ range $service := services }}
 backend {{ .Name }}_backend{{ range service .Name }}
    server {{ .Node }} {{ .Address }}:{{ .Port }}{{ end }}
-{{ end }}
+{{ with $auth := printf "service/%s/userlist/auth" $service.Name | key }}{{ if eq $auth "true" }}
+   acl AuthOkay_{{ $service.Name }} http_auth(users_for_{{ $service.Name }})
+   http-request auth realm MyAuthRealm if !AuthOkay_{{ $service.Name }}
+{{ end }}{{ end }}{{ end }}
 
 backend stats_backend
   stats enable
