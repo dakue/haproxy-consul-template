@@ -1,6 +1,11 @@
 global
   maxconn {{or (key "service/haproxy/maxconn") 4000}}
   debug
+  
+  ssl-default-bind-options no-sslv3
+  ssl-default-bind-ciphers ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+3DES:!aNULL:!MD5:!DSS
+  ssl-default-server-options no-sslv3
+  ssl-default-server-ciphers ECDH+AESGCM:DH+AESGCM:ECDH+AES256:DH+AES256:ECDH+AES128:DH+AES:ECDH+3DES:DH+3DES:RSA+AESGCM:RSA+AES:RSA+3DES:!aNULL:!MD5:!DSS
 
 defaults
   log global
@@ -20,7 +25,9 @@ defaults
 
 
 frontend www
-  bind *:80
+  bind *:80{{ if eq (env "HAPROXY_SSL") "true" }}
+  bind *:443 ssl crt /etc/ssl/{{ or (env "HAPROXY_DOMAIN") "haproxy.service.consul" }}.pem
+  redirect scheme https if !{ ssl_fc }{{ end }}
 
   acl host_stats hdr(host) -i stats.{{ or (env "HAPROXY_DOMAIN") "haproxy.service.consul" }}
   use_backend stats_backend if host_stats
@@ -31,6 +38,11 @@ frontend www
 
 {{ range $service := services }}
 backend {{ .Name }}_backend{{ range service .Name }}
+   mode http
+   option http-server-close
+   option forwardfor
+   http-request set-header X-Forwarded-Port %[dst_port]
+   http-request add-header X-Forwarded-Proto https if { ssl_fc }
    server {{ .Node }} {{ .Address }}:{{ .Port }}{{ end }}
 {{ with $auth := printf "service/%s/userlist/auth" $service.Name | key }}{{ if eq $auth "true" }}
    acl AuthOkay_{{ $service.Name }} http_auth(users_for_{{ $service.Name }})
