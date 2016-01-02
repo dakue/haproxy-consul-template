@@ -1,15 +1,15 @@
-FROM alpine:3.2
+FROM alpine:latest
 
-ENV CONSUL_TEMPLATE_VERSION=0.10.0 \
+ENV CONSUL_TEMPLATE_VERSION=0.12.0 \
   CONSUL_TEMPLATE_HOME="/opt/consul-template"
 
 RUN set -x && \ 
-  apk --update add bash tar curl ca-certificates haproxy && \
+  apk --update add bash tar unzip curl ca-certificates haproxy && \
   rm -rf /var/cache/apk/*
 
 RUN set -x && \
-  curl -sSL "https://github.com/hashicorp/consul-template/releases/download/v${CONSUL_TEMPLATE_VERSION}/consul-template_${CONSUL_TEMPLATE_VERSION}_linux_amd64.tar.gz" \
-  | tar xz --strip-components=1 -C /usr/local/bin && \
+  curl -sSL "https://releases.hashicorp.com/consul-template/${CONSUL_TEMPLATE_VERSION}/consul-template_${CONSUL_TEMPLATE_VERSION}_linux_amd64.zip" -o /usr/local/bin/consul-template.zip && \
+  cd /usr/local/bin && unzip consul-template.zip && \
   chown root:root /usr/local/bin/consul-template && \
   chmod +x /usr/local/bin/consul-template && \
   mkdir -p ${CONSUL_TEMPLATE_HOME}/config && \
